@@ -70,6 +70,7 @@
                 <div class="form-group">
                     <input type="text" id="budgetName" placeholder="Budget name (e.g., Groceries)">
                     <input type="number" id="budgetAmount" placeholder="Budget amount" step="0.01">
+                    <input type="date" id="budgetEndDate" placeholder="Budget period end date (optional)">
                     <button class="btn-add" onclick="addBudget()">+ Add Budget</button>
                 </div>
                 
@@ -108,6 +109,7 @@
         function addBudget() {
             const name = document.getElementById('budgetName').value;
             const amount = parseFloat(document.getElementById('budgetAmount').value);
+            const endDate = document.getElementById('budgetEndDate').value;
 
             if (!name || !amount) {
                 alert('Please enter a budget name and amount');
@@ -118,11 +120,13 @@
                 id: Date.now(),
                 name: name,
                 total: amount,
+                endDate: endDate || null,
                 expenses: []
             });
 
             document.getElementById('budgetName').value = '';
             document.getElementById('budgetAmount').value = '';
+            document.getElementById('budgetEndDate').value = '';
 
             saveData();
             render();
@@ -150,10 +154,11 @@
 
         function saveEditBudget(id) {
             const amount = parseFloat(document.getElementById('editAmount').value);
+            const endDate = document.getElementById('editEndDate').value;
 
             budgets = budgets.map(b => {
                 if (b.id === id) {
-                    return { ...b, total: amount };
+                    return { ...b, total: amount, endDate: endDate || null };
                 }
                 return b;
             });
@@ -218,6 +223,16 @@
             return budget.total - calculateSpent(budget);
         }
 
+        function getDaysUntilEnd(endDate) {
+            if (!endDate) return null;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const end = new Date(endDate);
+            const diffTime = end - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            return diffDays;
+        }
+
         function render() {
             const budgetList = document.getElementById('budgetList');
             
@@ -237,6 +252,7 @@
                                 <div class="budget-name" style="margin-bottom:10px">${budget.name}</div>
                                 <div class="edit-form">
                                     <input type="number" id="editAmount" value="${budget.total}" placeholder="Budget amount" step="0.01">
+                                    <input type="date" id="editEndDate" value="${budget.endDate || ''}" placeholder="Period end date">
                                     <div class="btn-row">
                                         <button class="btn-save" onclick="saveEditBudget(${budget.id})">Save</button>
                                         <button class="btn-cancel" onclick="cancelEdit()">Cancel</button>
@@ -249,6 +265,28 @@
                     let progressClass = 'progress-green';
                     if (percentUsed > 100) progressClass = 'progress-red';
                     else if (percentUsed > 75) progressClass = 'progress-yellow';
+
+                    let endDateHtml = '';
+                    if (budget.endDate) {
+                        const daysUntil = getDaysUntilEnd(budget.endDate);
+                        let endColor = 'color:#6b7280';
+                        let endText = '';
+                        
+                        if (daysUntil < 0) {
+                            endColor = 'color:#dc2626';
+                            endText = ' (EXPIRED)';
+                        } else if (daysUntil === 0) {
+                            endColor = 'color:#dc2626';
+                            endText = ' (TODAY)';
+                        } else if (daysUntil <= 7) {
+                            endColor = 'color:#ea580c';
+                            endText = ` (${daysUntil} days left)`;
+                        } else {
+                            endText = ` (${daysUntil} days left)`;
+                        }
+                        
+                        endDateHtml = `<div style="font-size:0.85em;font-weight:600;${endColor}">Period ends: ${new Date(budget.endDate).toLocaleDateString()}${endText}</div>`;
+                    }
 
                     return `
                         <div class="budget-card ${isSelected ? 'selected' : ''}">
@@ -265,6 +303,7 @@
                                 <div class="${remaining < 0 ? 'remaining-negative' : 'remaining-positive'}">
                                     Remaining: $${remaining.toFixed(2)}
                                 </div>
+                                ${endDateHtml}
                             </div>
                             <div class="progress-bar" onclick="selectBudget(${budget.id})">
                                 <div class="progress-fill ${progressClass}" style="width: ${Math.min(percentUsed, 100)}%"></div>
