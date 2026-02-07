@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debt Tracker</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background: linear-gradient(135deg, #fff5f5 0%, #ffe4d6 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { font-size: 2.5em; color: #333; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; }
+        .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0; }
+        .summary-card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .summary-label { font-size: 0.9em; color: #666; margin-bottom: 5px; }
+        .summary-value { font-size: 1.8em; font-weight: bold; }
+        .summary-value.red { color: #dc2626; }
+        .summary-value.green { color: #16a34a; }
+        .summary-value.gray { color: #4b5563; }
+        .clear-btn { background: none; border: none; color: #dc2626; text-decoration: underline; cursor: pointer; font-size: 0.9em; float: right; margin-bottom: 10px; }
+        .clear-btn:hover { color: #991b1b; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 20px; }
+        .panel { background: white; border-radius: 10px; padding: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h2 { font-size: 1.5em; color: #4b5563; margin-bottom: 20px; }
+        .form-group { margin-bottom: 10px; }
+        input, select { width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 1em; margin-bottom: 8px; }
+        input:focus, select:focus { outline: none; border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1); }
+        button { width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 1em; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; transition: background 0.2s; }
+        .btn-add { background: #dc2626; color: white; margin-bottom: 20px; }
+        .btn-add:hover { background: #b91c1c; }
+        .btn-payment { background: #16a34a; color: white; }
+        .btn-payment:hover { background: #15803d; }
+        .btn-save { background: #16a34a; color: white; }
+        .btn-save:hover { background: #15803d; }
+        .btn-cancel { background: #6b7280; color: white; }
+        .btn-cancel:hover { background: #4b5563; }
+        .debt-list { display: flex; flex-direction: column; gap: 12px; }
+        .debt-card { padding: 15px; border: 2px solid #e5e7eb; border-radius: 8px; transition: all 0.2s; }
+        .debt-card.selected { border-color: #dc2626; background: #fef2f2; }
+        .debt-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px; }
+        .debt-name { font-size: 1.1em; font-weight: 600; cursor: pointer; }
+        .debt-type { font-size: 0.8em; color: #6b7280; }
+        .icon-btn { background: none; border: none; cursor: pointer; padding: 5px; width: auto; }
+        .edit-btn { color: #2563eb; }
+        .edit-btn:hover { color: #1d4ed8; }
+        .delete-btn { color: #dc2626; }
+        .delete-btn:hover { color: #991b1b; }
+        .debt-info { font-size: 0.9em; color: #4b5563; margin-bottom: 8px; cursor: pointer; }
+        .debt-info div { margin: 3px 0; }
+        .paid-amount { color: #16a34a; font-weight: 600; }
+        .progress-bar { width: 100%; height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden; cursor: pointer; }
+        .progress-fill { height: 100%; background: #16a34a; transition: width 0.3s; }
+        .balance-display { background: linear-gradient(135deg, #fef2f2 0%, #fed7d7 100%); padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .balance-label { font-size: 0.9em; color: #666; }
+        .balance-amount { font-size: 2em; font-weight: bold; color: #dc2626; }
+        .paid-off { color: #16a34a; font-weight: 600; margin-top: 10px; }
+        .payment-list { display: flex; flex-direction: column; gap: 8px; max-height: 400px; overflow-y: auto; }
+        .payment-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; }
+        .payment-amount { color: #16a34a; font-weight: 600; }
+        .payment-date { font-size: 0.9em; color: #6b7280; }
+        .empty-state { text-align: center; color: #9ca3af; padding: 40px 20px; }
+        .edit-form { display: flex; flex-direction: column; gap: 8px; }
+        .btn-row { display: flex; gap: 8px; }
+        .btn-row button { flex: 1; }
+        @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } h1 { font-size: 1.8em; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>💳 Debt Tracker</h1>
+        
+        <div class="summary">
+            <div class="summary-card">
+                <div class="summary-label">Total Debt Remaining</div>
+                <div class="summary-value red" id="totalDebt">$0.00</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-label">Total Paid Off</div>
+                <div class="summary-value green" id="totalPaid">$0.00</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-label">Number of Debts</div>
+                <div class="summary-value gray" id="debtCount">0</div>
+            </div>
+        </div>
+        
+        <button class="clear-btn" onclick="clearAllData()">Clear All Data</button>
+        
+        <div class="grid">
+            <div class="panel">
+                <h2>My Debts</h2>
+                
+                <div class="form-group">
+                    <input type="text" id="debtName" placeholder="Debt name (e.g., Chase Visa)">
+                    <select id="debtType">
+                        <option>Credit Card</option>
+                        <option>Personal Loan</option>
+                        <option>Student Loan</option>
+                        <option>Car Loan</option>
+                        <option>Medical Debt</option>
+                        <option>Other</option>
+                    </select>
+                    <input type="number" id="debtBalance" placeholder="Current balance" step="0.01">
+                    <input type="number" id="debtInterest" placeholder="Interest rate % (optional)" step="0.01">
+                    <input type="number" id="debtMinPayment" placeholder="Minimum payment (optional)" step="0.01">
+                    <button class="btn-add" onclick="addDebt()">+ Add Debt</button>
+                </div>
+                
+                <div class="debt-list" id="debtList"></div>
+            </div>
+            
+            <div class="panel">
+                <h2 id="paymentTitle">Select a Debt</h2>
+                <div id="paymentPanel"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let debts = [];
+        let selectedDebtId = null;
+        let editingDebtId = null;
+
+        function loadData() {
+            const saved = localStorage.getItem('debt-tracker-data');
+            if (saved) {
+                const data = JSON.parse(saved);
+                debts = data.debts || [];
+                selectedDebtId = data.selectedDebtId || null;
+            }
+            render();
+        }
+
+        function saveData() {
+            localStorage.setItem('debt-tracker-data', JSON.stringify({
+                debts: debts,
+                selectedDebtId: selectedDebtId
+            }));
+        }
+
+        function addDebt() {
+            const name = document.getElementById('debtName').value;
+            const type = document.getElementById('debtType').value;
+            const balance = parseFloat(document.getElementById('debtBalance').value);
+            const interest = parseFloat(document.getElementById('debtInterest').value) || 0;
+            const minPayment = parseFloat(document.getElementById('debtMinPayment').value) || 0;
+
+            if (!name || !balance) {
+                alert('Please enter a debt name and balance');
+                return;
+            }
+
+            debts.push({
+                id: Date.now(),
+                name: name,
+                type: type,
+                originalBalance: balance,
+                currentBalance: balance,
+                interestRate: interest,
+                minPayment: minPayment,
+                payments: []
+            });
+
+            document.getElementById('debtName').value = '';
+            document.getElementById('debtBalance').value = '';
+            document.getElementById('debtInterest').value = '';
+            document.getElementById('debtMinPayment').value = '';
+
+            saveData();
+            render();
+        }
+
+        function deleteDebt(id) {
+            if (confirm('Delete this debt?')) {
+                debts = debts.filter(d => d.id !== id);
+                if (selectedDebtId === id) selectedDebtId = null;
+                saveData();
+                render();
+            }
+        }
+
+        function selectDebt(id) {
+            selectedDebtId = id;
+            saveData();
+            render();
+        }
+
+        function startEditDebt(id) {
+            editingDebtId = id;
+            render();
+        }
+
+        function saveEditDebt(id) {
+            const balance = parseFloat(document.getElementById('editBalance').value);
+            const interest = parseFloat(document.getElementById('editInterest').value) || 0;
+            const minPayment = parseFloat(document.getElementById('editMinPayment').value) || 0;
+
+            debts = debts.map(d => {
+                if (d.id === id) {
+                    return {
+                        ...d,
+                        currentBalance: balance,
+                        interestRate: interest,
+                        minPayment: minPayment
+                    };
+                }
+                return d;
+            });
+
+            editingDebtId = null;
+            saveData();
+            render();
+        }
+
+        function cancelEdit() {
+            editingDebtId = null;
+            render();
+        }
+
+        function addPayment() {
+            const amount = parseFloat(document.getElementById('paymentAmount').value);
+            if (!amount || !selectedDebtId) return;
+
+            const debt = debts.find(d => d.id === selectedDebtId);
+            if (!debt) return;
+
+            debt.payments.push({
+                id: Date.now(),
+                amount: amount,
+                date: new Date().toLocaleDateString()
+            });
+
+            debt.currentBalance = Math.max(0, debt.currentBalance - amount);
+            document.getElementById('paymentAmount').value = '';
+
+            saveData();
+            render();
+        }
+
+        function deletePayment(paymentId) {
+            const debt = debts.find(d => d.id === selectedDebtId);
+            if (!debt) return;
+
+            const payment = debt.payments.find(p => p.id === paymentId);
+            if (!payment) return;
+
+            debt.currentBalance += payment.amount;
+            debt.payments = debt.payments.filter(p => p.id !== paymentId);
+
+            saveData();
+            render();
+        }
+
+        function clearAllData() {
+            if (confirm('Delete all debts? This cannot be undone.')) {
+                localStorage.removeItem('debt-tracker-data');
+                debts = [];
+                selectedDebtId = null;
+                render();
+            }
+        }
+
+        function getTotalDebt() {
+            return debts.reduce((sum, d) => sum + d.currentBalance, 0);
+        }
+
+        function getTotalPaid() {
+            return debts.reduce((sum, d) => {
+                const paid = d.payments.reduce((s, p) => s + p.amount, 0);
+                return sum + paid;
+            }, 0);
+        }
+
+        function render() {
+            document.getElementById('totalDebt').textContent = '$' + getTotalDebt().toFixed(2);
+            document.getElementById('totalPaid').textContent = '$' + getTotalPaid().toFixed(2);
+            document.getElementById('debtCount').textContent = debts.length;
+
+            const debtList = document.getElementById('debtList');
+            if (debts.length === 0) {
+                debtList.innerHTML = '<div class="empty-state">No debts tracked yet. Add one to get started!</div>';
+            } else {
+                debtList.innerHTML = debts.map(debt => {
+                    const totalPaid = debt.payments.reduce((sum, p) => sum + p.amount, 0);
+                    const progress = ((debt.originalBalance - debt.currentBalance) / debt.originalBalance * 100);
+                    const isSelected = debt.id === selectedDebtId;
+                    const isEditing = debt.id === editingDebtId;
+
+                    if (isEditing) {
+                        return `
+                            <div class="debt-card">
+                                <div class="debt-name" style="margin-bottom:10px">${debt.name}</div>
+                                <div class="edit-form">
+                                    <input type="number" id="editBalance" value="${debt.currentBalance}" placeholder="Current balance" step="0.01">
+                                    <input type="number" id="editInterest" value="${debt.interestRate}" placeholder="Interest rate %" step="0.01">
+                                    <input type="number" id="editMinPayment" value="${debt.minPayment}" placeholder="Minimum payment" step="0.01">
+                                    <div class="btn-row">
+                                        <button class="btn-save" onclick="saveEditDebt(${debt.id})">Save</button>
+                                        <button class="btn-cancel" onclick="cancelEdit()">Cancel</button>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    return `
+                        <div class="debt-card ${isSelected ? 'selected' : ''}">
+                            <div class="debt-header">
+                                <div onclick="selectDebt(${debt.id})" style="flex:1">
+                                    <div class="debt-name">${debt.name}</div>
+                                    <div class="debt-type">${debt.type}</div>
+                                </div>
+                                <div style="display:flex;gap:8px">
+                                    <button class="icon-btn edit-btn" onclick="startEditDebt(${debt.id})">✏️</button>
+                                    <button class="icon-btn delete-btn" onclick="deleteDebt(${debt.id})">🗑️</button>
+                                </div>
+                            </div>
+                            <div class="debt-info" onclick="selectDebt(${debt.id})">
+                                <div>Original: $${debt.originalBalance.toFixed(2)}</div>
+                                <div>Current: $${debt.currentBalance.toFixed(2)}</div>
+                                <div class="paid-amount">Paid: $${totalPaid.toFixed(2)} (${progress.toFixed(1)}%)</div>
+                                ${debt.interestRate > 0 ? `<div style="font-size:0.85em;color:#6b7280">APR: ${debt.interestRate}%</div>` : ''}
+                                ${debt.minPayment > 0 ? `<div style="font-size:0.85em;color:#6b7280">Min Payment: $${debt.minPayment.toFixed(2)}</div>` : ''}
+                            </div>
+                            <div class="progress-bar" onclick="selectDebt(${debt.id})">
+                                <div class="progress-fill" style="width: ${Math.min(progress, 100)}%"></div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            const selectedDebt = debts.find(d => d.id === selectedDebtId);
+            const paymentTitle = document.getElementById('paymentTitle');
+            const paymentPanel = document.getElementById('paymentPanel');
+
+            if (!selectedDebt) {
+                paymentTitle.textContent = 'Select a Debt';
+                paymentPanel.innerHTML = '<div class="empty-state">Select a debt from the left to record payments</div>';
+            } else {
+                paymentTitle.textContent = `Payments: ${selectedDebt.name}`;
+                
+                const isPaidOff = selectedDebt.currentBalance === 0;
+                
+                paymentPanel.innerHTML = `
+                    <div class="balance-display">
+                        <div class="balance-label">Current Balance</div>
+                        <div class="balance-amount">$${selectedDebt.currentBalance.toFixed(2)}</div>
+                        ${isPaidOff ? '<div class="paid-off">🎉 Paid Off!</div>' : ''}
+                    </div>
+                    
+                    <div style="margin-bottom:20px">
+                        <input type="number" id="paymentAmount" placeholder="Payment amount" step="0.01">
+                        <button class="btn-payment" onclick="addPayment()">📉 Record Payment</button>
+                    </div>
+                    
+                    <h3 style="margin-bottom:15px;color:#4b5563;font-size:1.1em">Payment History</h3>
+                    <div class="payment-list">
+                        ${selectedDebt.payments.length === 0 
+                            ? '<div class="empty-state">No payments recorded yet.</div>'
+                            : selectedDebt.payments.map(p => `
+                                <div class="payment-item">
+                                    <div>
+                                        <div class="payment-amount">-$${p.amount.toFixed(2)}</div>
+                                        <div class="payment-date">${p.date}</div>
+                                    </div>
+                                    <button class="icon-btn delete-btn" onclick="deletePayment(${p.id})">🗑️</button>
+                                </div>
+                            `).join('')
+                        }
+                    </div>
+                `;
+            }
+        }
+
+        loadData();
+    </script>
+</body>
+</html>

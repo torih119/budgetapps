@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Budget & Expense Tracker</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { font-size: 2.5em; color: #333; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+        .clear-btn { background: none; border: none; color: #dc2626; text-decoration: underline; cursor: pointer; font-size: 0.9em; float: right; margin-bottom: 10px; }
+        .clear-btn:hover { color: #991b1b; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 20px; }
+        .panel { background: white; border-radius: 10px; padding: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h2 { font-size: 1.5em; color: #4b5563; margin-bottom: 20px; }
+        .form-group { margin-bottom: 10px; }
+        input, select { width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 1em; margin-bottom: 8px; }
+        input:focus, select:focus { outline: none; border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
+        button { width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 1em; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; transition: background 0.2s; }
+        .btn-add { background: #4f46e5; color: white; margin-bottom: 20px; }
+        .btn-add:hover { background: #4338ca; }
+        .btn-expense { background: #16a34a; color: white; }
+        .btn-expense:hover { background: #15803d; }
+        .btn-save { background: #16a34a; color: white; }
+        .btn-save:hover { background: #15803d; }
+        .btn-cancel { background: #6b7280; color: white; }
+        .btn-cancel:hover { background: #4b5563; }
+        .budget-list { display: flex; flex-direction: column; gap: 12px; }
+        .budget-card { padding: 15px; border: 2px solid #e5e7eb; border-radius: 8px; transition: all 0.2s; }
+        .budget-card.selected { border-color: #4f46e5; background: #eef2ff; }
+        .budget-header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px; }
+        .budget-name { font-size: 1.1em; font-weight: 600; cursor: pointer; }
+        .icon-btn { background: none; border: none; cursor: pointer; padding: 5px; width: auto; }
+        .edit-btn { color: #2563eb; }
+        .edit-btn:hover { color: #1d4ed8; }
+        .delete-btn { color: #dc2626; }
+        .delete-btn:hover { color: #991b1b; }
+        .budget-info { font-size: 0.9em; color: #4b5563; margin-bottom: 8px; cursor: pointer; }
+        .budget-info div { margin: 3px 0; }
+        .remaining-positive { color: #16a34a; font-weight: 600; }
+        .remaining-negative { color: #dc2626; font-weight: 600; }
+        .progress-bar { width: 100%; height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden; cursor: pointer; }
+        .progress-fill { height: 100%; transition: width 0.3s; }
+        .progress-green { background: #16a34a; }
+        .progress-yellow { background: #eab308; }
+        .progress-red { background: #dc2626; }
+        .expense-list { display: flex; flex-direction: column; gap: 8px; max-height: 500px; overflow-y: auto; }
+        .expense-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; }
+        .expense-name { font-weight: 600; }
+        .expense-date { font-size: 0.9em; color: #6b7280; }
+        .expense-amount { font-weight: 600; color: #4b5563; }
+        .empty-state { text-align: center; color: #9ca3af; padding: 40px 20px; }
+        .edit-form { display: flex; flex-direction: column; gap: 8px; }
+        .btn-row { display: flex; gap: 8px; }
+        .btn-row button { flex: 1; }
+        @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } h1 { font-size: 1.8em; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>💰 Budget Tracker</h1>
+        
+        <button class="clear-btn" onclick="clearAllData()">Clear All Data</button>
+        
+        <div class="grid">
+            <div class="panel">
+                <h2>My Budgets</h2>
+                
+                <div class="form-group">
+                    <input type="text" id="budgetName" placeholder="Budget name (e.g., Groceries)">
+                    <input type="number" id="budgetAmount" placeholder="Budget amount" step="0.01">
+                    <button class="btn-add" onclick="addBudget()">+ Add Budget</button>
+                </div>
+                
+                <div class="budget-list" id="budgetList"></div>
+            </div>
+            
+            <div class="panel">
+                <h2 id="expenseTitle">Select a Budget</h2>
+                <div id="expensePanel"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let budgets = [];
+        let selectedBudgetId = null;
+        let editingBudgetId = null;
+
+        function loadData() {
+            const saved = localStorage.getItem('expense-tracker-data');
+            if (saved) {
+                const data = JSON.parse(saved);
+                budgets = data.budgets || [];
+                selectedBudgetId = data.selectedBudgetId || null;
+            }
+            render();
+        }
+
+        function saveData() {
+            localStorage.setItem('expense-tracker-data', JSON.stringify({
+                budgets: budgets,
+                selectedBudgetId: selectedBudgetId
+            }));
+        }
+
+        function addBudget() {
+            const name = document.getElementById('budgetName').value;
+            const amount = parseFloat(document.getElementById('budgetAmount').value);
+
+            if (!name || !amount) {
+                alert('Please enter a budget name and amount');
+                return;
+            }
+
+            budgets.push({
+                id: Date.now(),
+                name: name,
+                total: amount,
+                expenses: []
+            });
+
+            document.getElementById('budgetName').value = '';
+            document.getElementById('budgetAmount').value = '';
+
+            saveData();
+            render();
+        }
+
+        function deleteBudget(id) {
+            if (confirm('Delete this budget?')) {
+                budgets = budgets.filter(b => b.id !== id);
+                if (selectedBudgetId === id) selectedBudgetId = null;
+                saveData();
+                render();
+            }
+        }
+
+        function selectBudget(id) {
+            selectedBudgetId = id;
+            saveData();
+            render();
+        }
+
+        function startEditBudget(id) {
+            editingBudgetId = id;
+            render();
+        }
+
+        function saveEditBudget(id) {
+            const amount = parseFloat(document.getElementById('editAmount').value);
+
+            budgets = budgets.map(b => {
+                if (b.id === id) {
+                    return { ...b, total: amount };
+                }
+                return b;
+            });
+
+            editingBudgetId = null;
+            saveData();
+            render();
+        }
+
+        function cancelEdit() {
+            editingBudgetId = null;
+            render();
+        }
+
+        function addExpense() {
+            const name = document.getElementById('expenseName').value;
+            const amount = parseFloat(document.getElementById('expenseAmount').value);
+
+            if (!name || !amount || !selectedBudgetId) return;
+
+            const budget = budgets.find(b => b.id === selectedBudgetId);
+            if (!budget) return;
+
+            budget.expenses.push({
+                id: Date.now(),
+                name: name,
+                amount: amount,
+                date: new Date().toLocaleDateString()
+            });
+
+            document.getElementById('expenseName').value = '';
+            document.getElementById('expenseAmount').value = '';
+
+            saveData();
+            render();
+        }
+
+        function deleteExpense(expenseId) {
+            const budget = budgets.find(b => b.id === selectedBudgetId);
+            if (!budget) return;
+
+            budget.expenses = budget.expenses.filter(e => e.id !== expenseId);
+
+            saveData();
+            render();
+        }
+
+        function clearAllData() {
+            if (confirm('Delete all budgets? This cannot be undone.')) {
+                localStorage.removeItem('expense-tracker-data');
+                budgets = [];
+                selectedBudgetId = null;
+                render();
+            }
+        }
+
+        function calculateSpent(budget) {
+            return budget.expenses.reduce((sum, e) => sum + e.amount, 0);
+        }
+
+        function calculateRemaining(budget) {
+            return budget.total - calculateSpent(budget);
+        }
+
+        function render() {
+            const budgetList = document.getElementById('budgetList');
+            
+            if (budgets.length === 0) {
+                budgetList.innerHTML = '<div class="empty-state">No budgets yet. Create one to get started!</div>';
+            } else {
+                budgetList.innerHTML = budgets.map(budget => {
+                    const spent = calculateSpent(budget);
+                    const remaining = calculateRemaining(budget);
+                    const percentUsed = (spent / budget.total) * 100;
+                    const isSelected = budget.id === selectedBudgetId;
+                    const isEditing = budget.id === editingBudgetId;
+
+                    if (isEditing) {
+                        return `
+                            <div class="budget-card">
+                                <div class="budget-name" style="margin-bottom:10px">${budget.name}</div>
+                                <div class="edit-form">
+                                    <input type="number" id="editAmount" value="${budget.total}" placeholder="Budget amount" step="0.01">
+                                    <div class="btn-row">
+                                        <button class="btn-save" onclick="saveEditBudget(${budget.id})">Save</button>
+                                        <button class="btn-cancel" onclick="cancelEdit()">Cancel</button>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    let progressClass = 'progress-green';
+                    if (percentUsed > 100) progressClass = 'progress-red';
+                    else if (percentUsed > 75) progressClass = 'progress-yellow';
+
+                    return `
+                        <div class="budget-card ${isSelected ? 'selected' : ''}">
+                            <div class="budget-header">
+                                <div class="budget-name" onclick="selectBudget(${budget.id})" style="flex:1">${budget.name}</div>
+                                <div style="display:flex;gap:8px">
+                                    <button class="icon-btn edit-btn" onclick="startEditBudget(${budget.id})">✏️</button>
+                                    <button class="icon-btn delete-btn" onclick="deleteBudget(${budget.id})">🗑️</button>
+                                </div>
+                            </div>
+                            <div class="budget-info" onclick="selectBudget(${budget.id})">
+                                <div>Total: $${budget.total.toFixed(2)}</div>
+                                <div>Spent: $${spent.toFixed(2)}</div>
+                                <div class="${remaining < 0 ? 'remaining-negative' : 'remaining-positive'}">
+                                    Remaining: $${remaining.toFixed(2)}
+                                </div>
+                            </div>
+                            <div class="progress-bar" onclick="selectBudget(${budget.id})">
+                                <div class="progress-fill ${progressClass}" style="width: ${Math.min(percentUsed, 100)}%"></div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            const selectedBudget = budgets.find(b => b.id === selectedBudgetId);
+            const expenseTitle = document.getElementById('expenseTitle');
+            const expensePanel = document.getElementById('expensePanel');
+
+            if (!selectedBudget) {
+                expenseTitle.textContent = 'Select a Budget';
+                expensePanel.innerHTML = '<div class="empty-state">Select a budget from the left to add and view expenses</div>';
+            } else {
+                expenseTitle.textContent = `Expenses: ${selectedBudget.name}`;
+                
+                expensePanel.innerHTML = `
+                    <div style="margin-bottom:20px">
+                        <input type="text" id="expenseName" placeholder="Expense description">
+                        <input type="number" id="expenseAmount" placeholder="Amount" step="0.01">
+                        <button class="btn-expense" onclick="addExpense()">+ Add Expense</button>
+                    </div>
+                    
+                    <h3 style="margin-bottom:15px;color:#4b5563;font-size:1.1em">Expense List</h3>
+                    <div class="expense-list">
+                        ${selectedBudget.expenses.length === 0 
+                            ? '<div class="empty-state">No expenses yet.</div>'
+                            : selectedBudget.expenses.map(e => `
+                                <div class="expense-item">
+                                    <div>
+                                        <div class="expense-name">${e.name}</div>
+                                        <div class="expense-date">${e.date}</div>
+                                    </div>
+                                    <div style="display:flex;align-items:center;gap:10px">
+                                        <div class="expense-amount">$${e.amount.toFixed(2)}</div>
+                                        <button class="icon-btn delete-btn" onclick="deleteExpense(${e.id})">🗑️</button>
+                                    </div>
+                                </div>
+                            `).join('')
+                        }
+                    </div>
+                `;
+            }
+        }
+
+        loadData();
+    </script>
+</body>
+</html>
