@@ -102,6 +102,7 @@
                     <input type="number" id="debtBalance" placeholder="Current balance" step="0.01">
                     <input type="number" id="debtInterest" placeholder="Interest rate % (optional)" step="0.01">
                     <input type="number" id="debtMinPayment" placeholder="Minimum payment (optional)" step="0.01">
+                    <input type="date" id="debtDueDate" placeholder="Payment due date (optional)">
                     <button class="btn-add" onclick="addDebt()">+ Add Debt</button>
                 </div>
                 
@@ -143,6 +144,7 @@
             const balance = parseFloat(document.getElementById('debtBalance').value);
             const interest = parseFloat(document.getElementById('debtInterest').value) || 0;
             const minPayment = parseFloat(document.getElementById('debtMinPayment').value) || 0;
+            const dueDate = document.getElementById('debtDueDate').value;
 
             if (!name || !balance) {
                 alert('Please enter a debt name and balance');
@@ -157,6 +159,7 @@
                 currentBalance: balance,
                 interestRate: interest,
                 minPayment: minPayment,
+                dueDate: dueDate || null,
                 payments: []
             });
 
@@ -164,6 +167,7 @@
             document.getElementById('debtBalance').value = '';
             document.getElementById('debtInterest').value = '';
             document.getElementById('debtMinPayment').value = '';
+            document.getElementById('debtDueDate').value = '';
 
             saveData();
             render();
@@ -193,6 +197,7 @@
             const balance = parseFloat(document.getElementById('editBalance').value);
             const interest = parseFloat(document.getElementById('editInterest').value) || 0;
             const minPayment = parseFloat(document.getElementById('editMinPayment').value) || 0;
+            const dueDate = document.getElementById('editDueDate').value;
 
             debts = debts.map(d => {
                 if (d.id === id) {
@@ -200,7 +205,8 @@
                         ...d,
                         currentBalance: balance,
                         interestRate: interest,
-                        minPayment: minPayment
+                        minPayment: minPayment,
+                        dueDate: dueDate || null
                     };
                 }
                 return d;
@@ -218,6 +224,8 @@
 
         function addPayment() {
             const amount = parseFloat(document.getElementById('paymentAmount').value);
+            const paymentDate = document.getElementById('paymentDate').value;
+            
             if (!amount || !selectedDebtId) return;
 
             const debt = debts.find(d => d.id === selectedDebtId);
@@ -226,11 +234,12 @@
             debt.payments.push({
                 id: Date.now(),
                 amount: amount,
-                date: new Date().toLocaleDateString()
+                date: paymentDate || new Date().toLocaleDateString()
             });
 
             debt.currentBalance = Math.max(0, debt.currentBalance - amount);
             document.getElementById('paymentAmount').value = '';
+            document.getElementById('paymentDate').value = '';
 
             saveData();
             render();
@@ -270,6 +279,16 @@
             }, 0);
         }
 
+        function getDaysUntilDue(dueDate) {
+            if (!dueDate) return null;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const due = new Date(dueDate);
+            const diffTime = due - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            return diffDays;
+        }
+
         function render() {
             document.getElementById('totalDebt').textContent = '$' + getTotalDebt().toFixed(2);
             document.getElementById('totalPaid').textContent = '$' + getTotalPaid().toFixed(2);
@@ -293,6 +312,7 @@
                                     <input type="number" id="editBalance" value="${debt.currentBalance}" placeholder="Current balance" step="0.01">
                                     <input type="number" id="editInterest" value="${debt.interestRate}" placeholder="Interest rate %" step="0.01">
                                     <input type="number" id="editMinPayment" value="${debt.minPayment}" placeholder="Minimum payment" step="0.01">
+                                    <input type="date" id="editDueDate" value="${debt.dueDate || ''}" placeholder="Due date">
                                     <div class="btn-row">
                                         <button class="btn-save" onclick="saveEditDebt(${debt.id})">Save</button>
                                         <button class="btn-cancel" onclick="cancelEdit()">Cancel</button>
@@ -300,6 +320,28 @@
                                 </div>
                             </div>
                         `;
+                    }
+
+                    let dueDateHtml = '';
+                    if (debt.dueDate) {
+                        const daysUntil = getDaysUntilDue(debt.dueDate);
+                        let dueColor = 'color:#6b7280';
+                        let dueText = '';
+                        
+                        if (daysUntil < 0) {
+                            dueColor = 'color:#dc2626';
+                            dueText = ' (OVERDUE)';
+                        } else if (daysUntil === 0) {
+                            dueColor = 'color:#dc2626';
+                            dueText = ' (TODAY)';
+                        } else if (daysUntil <= 7) {
+                            dueColor = 'color:#ea580c';
+                            dueText = ` (${daysUntil} days)`;
+                        } else {
+                            dueText = ` (${daysUntil} days)`;
+                        }
+                        
+                        dueDateHtml = `<div style="font-size:0.85em;font-weight:600;${dueColor}">Due: ${new Date(debt.dueDate).toLocaleDateString()}${dueText}</div>`;
                     }
 
                     return `
@@ -320,6 +362,7 @@
                                 <div class="paid-amount">Paid: $${totalPaid.toFixed(2)} (${progress.toFixed(1)}%)</div>
                                 ${debt.interestRate > 0 ? `<div style="font-size:0.85em;color:#6b7280">APR: ${debt.interestRate}%</div>` : ''}
                                 ${debt.minPayment > 0 ? `<div style="font-size:0.85em;color:#6b7280">Min Payment: $${debt.minPayment.toFixed(2)}</div>` : ''}
+                                ${dueDateHtml}
                             </div>
                             <div class="progress-bar" onclick="selectDebt(${debt.id})">
                                 <div class="progress-fill" style="width: ${Math.min(progress, 100)}%"></div>
@@ -350,6 +393,7 @@
                     
                     <div style="margin-bottom:20px">
                         <input type="number" id="paymentAmount" placeholder="Payment amount" step="0.01">
+                        <input type="date" id="paymentDate" placeholder="Payment date (defaults to today)">
                         <button class="btn-payment" onclick="addPayment()">📉 Record Payment</button>
                     </div>
                     
