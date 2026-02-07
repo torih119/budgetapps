@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bill Tracker</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background: linear-gradient(135deg, #faf5ff 0%, #e9d5ff 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        h1 { font-size: 2.5em; color: #333; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; }
+        .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0; }
+        .summary-card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .summary-label { font-size: 0.9em; color: #666; margin-bottom: 5px; }
+        .summary-value { font-size: 1.8em; font-weight: bold; }
+        .summary-value.purple { color: #7c3aed; }
+        .summary-value.green { color: #16a34a; }
+        .summary-value.red { color: #dc2626; }
+        .clear-btn { background: none; border: none; color: #dc2626; text-decoration: underline; cursor: pointer; font-size: 0.9em; float: right; margin-bottom: 10px; }
+        .clear-btn:hover { color: #991b1b; }
+        .grid { display: grid; grid-template-columns: 350px 1fr; gap: 20px; }
+        .panel { background: white; border-radius: 10px; padding: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h2 { font-size: 1.5em; color: #4b5563; margin-bottom: 20px; }
+        .form-group { margin-bottom: 10px; }
+        input, select { width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 1em; margin-bottom: 8px; }
+        input:focus, select:focus { outline: none; border-color: #7c3aed; box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1); }
+        button { width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 1em; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; transition: background 0.2s; }
+        .btn-add { background: #7c3aed; color: white; margin-bottom: 20px; }
+        .btn-add:hover { background: #6d28d9; }
+        .btn-save { background: #16a34a; color: white; }
+        .btn-save:hover { background: #15803d; }
+        .btn-cancel { background: #6b7280; color: white; }
+        .btn-cancel:hover { background: #4b5563; }
+        .paycheck-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+        .paycheck-item { padding: 12px; background: #f3f4f6; border-radius: 8px; cursor: pointer; border: 2px solid transparent; transition: all 0.2s; display: flex; justify-content: space-between; align-items: center; }
+        .paycheck-item.selected { border-color: #7c3aed; background: #ede9fe; }
+        .paycheck-item:hover { border-color: #c4b5fd; }
+        .paycheck-date { font-weight: 600; color: #4b5563; }
+        .paycheck-amount { color: #16a34a; font-weight: 600; }
+        .bill-table { width: 100%; border-collapse: collapse; }
+        .bill-table th { background: #f9fafb; padding: 12px; text-align: left; font-weight: 600; color: #4b5563; border-bottom: 2px solid #e5e7eb; position: sticky; top: 0; }
+        .bill-table td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
+        .bill-row { transition: background 0.2s; }
+        .bill-row:hover { background: #f9fafb; }
+        .bill-row.paid { background: #f0fdf4; }
+        .bill-row.overdue { background: #fef2f2; }
+        .bill-row.due-soon { background: #fef9c3; }
+        .checkbox { width: 20px; height: 20px; cursor: pointer; }
+        .bill-name { font-weight: 600; color: #1f2937; }
+        .bill-amount { font-weight: 600; color: #7c3aed; }
+        .bill-due { font-size: 0.9em; color: #6b7280; }
+        .status-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.85em; font-weight: 600; }
+        .status-paid { background: #dcfce7; color: #166534; }
+        .status-pending { background: #fef3c7; color: #92400e; }
+        .status-overdue { background: #fee2e2; color: #991b1b; }
+        .icon-btn { background: none; border: none; cursor: pointer; padding: 4px; width: auto; }
+        .edit-btn { color: #2563eb; font-size: 1.2em; }
+        .delete-btn { color: #dc2626; font-size: 1.2em; }
+        .edit-form { background: #f9fafb; padding: 15px; border-radius: 8px; margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+        .btn-row { display: flex; gap: 8px; }
+        .btn-row button { flex: 1; }
+        .empty-state { text-align: center; color: #9ca3af; padding: 40px 20px; }
+        .filter-tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .filter-tab { padding: 8px 16px; border-radius: 6px; border: none; background: #f3f4f6; color: #6b7280; cursor: pointer; font-weight: 600; }
+        .filter-tab.active { background: #7c3aed; color: white; }
+        @media (max-width: 1200px) { .grid { grid-template-columns: 1fr; } }
+        @media (max-width: 768px) { h1 { font-size: 1.8em; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📋 Bill Tracker</h1>
+        
+        <div class="summary">
+            <div class="summary-card">
+                <div class="summary-label">Total Bills This Period</div>
+                <div class="summary-value purple" id="totalBills">$0.00</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-label">Paid</div>
+                <div class="summary-value green" id="totalPaid">$0.00</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-label">Unpaid</div>
+                <div class="summary-value red" id="totalUnpaid">$0.00</div>
+            </div>
+        </div>
+        
+        <button class="clear-btn" onclick="clearAllData()">Clear All Data</button>
+        
+        <div class="grid">
+            <div class="panel">
+                <h2>Add Bill</h2>
+                <div class="form-group">
+                    <input type="text" id="billName" placeholder="Bill name (e.g., Electric)">
+                    <input type="number" id="billAmount" placeholder="Amount" step="0.01">
+                    <input type="date" id="billDueDate" placeholder="Due date">
+                    <button class="btn-add" onclick="addBill()">+ Add Bill</button>
+                </div>
+
+                <h2 style="margin-top: 30px;">Pay Periods</h2>
+                <div class="form-group">
+                    <input type="date" id="paycheckDate" placeholder="Paycheck date">
+                    <button class="btn-add" onclick="addPaycheck()">+ Add Pay Period</button>
+                </div>
+                
+                <div class="paycheck-list" id="paycheckList"></div>
+            </div>
+            
+            <div class="panel">
+                <div class="filter-tabs">
+                    <button class="filter-tab active" onclick="setFilter('all')">All Bills</button>
+                    <button class="filter-tab" onclick="setFilter('unpaid')">Unpaid</button>
+                    <button class="filter-tab" onclick="setFilter('paid')">Paid</button>
+                    <button class="filter-tab" onclick="setFilter('overdue')">Overdue</button>
+                </div>
+
+                <h2 id="billsTitle">All Bills</h2>
+                <div id="billsPanel"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let bills = [];
+        let paychecks = [];
+        let selectedPaycheckId = null;
+        let editingBillId = null;
+        let currentFilter = 'all';
+
+        function loadData() {
+            const saved = localStorage.getItem('bill-tracker-data');
+            if (saved) {
+                const data = JSON.parse(saved);
+                bills = data.bills || [];
+                paychecks = data.paychecks || [];
+                selectedPaycheckId = data.selectedPaycheckId || null;
+            }
+            render();
+        }
+
+        function saveData() {
+            localStorage.setItem('bill-tracker-data', JSON.stringify({
+                bills: bills,
+                paychecks: paychecks,
+                selectedPaycheckId: selectedPaycheckId
+            }));
+        }
+
+        function addBill() {
+            const name = document.getElementById('billName').value;
+            const amount = parseFloat(document.getElementById('billAmount').value);
+            const dueDate = document.getElementById('billDueDate').value;
+
+            if (!name || !amount || !dueDate) {
+                alert('Please fill in all fields');
+                return;
+            }
+
+            bills.push({
+                id: Date.now(),
+                name: name,
+                amount: amount,
+                dueDate: dueDate,
+                paid: false,
+                datePaid: null,
+                assignedPaycheckId: null
+            });
+
+            document.getElementById('billName').value = '';
+            document.getElementById('billAmount').value = '';
+            document.getElementById('billDueDate').value = '';
+
+            saveData();
+            render();
+        }
+
+        function addPaycheck() {
+            const date = document.getElementById('paycheckDate').value;
+            if (!date) {
+                alert('Please enter a paycheck date');
+                return;
+            }
+
+            paychecks.push({
+                id: Date.now(),
+                date: date
+            });
+
+            paychecks.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            document.getElementById('paycheckDate').value = '';
+            saveData();
+            render();
+        }
+
+        function selectPaycheck(id) {
+            selectedPaycheckId = selectedPaycheckId === id ? null : id;
+            saveData();
+            render();
+        }
+
+        function deletePaycheck(id) {
+            if (confirm('Delete this pay period?')) {
+                paychecks = paychecks.filter(p => p.id !== id);
+                if (selectedPaycheckId === id) selectedPaycheckId = null;
+                saveData();
+                render();
+            }
+        }
+
+        function togglePaid(billId) {
+            const bill = bills.find(b => b.id === billId);
+            if (bill) {
+                bill.paid = !bill.paid;
+                bill.datePaid = bill.paid ? new Date().toLocaleDateString() : null;
+                saveData();
+                render();
+            }
+        }
+
+        function setDatePaid(billId) {
+            const dateInput = document.getElementById(`datePaid-${billId}`);
+            const bill = bills.find(b => b.id === billId);
+            if (bill && dateInput) {
+                bill.datePaid = dateInput.value ? new Date(dateInput.value).toLocaleDateString() : null;
+                saveData();
+                render();
+            }
+        }
+
+        function startEditBill(id) {
+            editingBillId = id;
+            render();
+        }
+
+        function saveEditBill(id) {
+            const name = document.getElementById('editName').value;
+            const amount = parseFloat(document.getElementById('editAmount').value);
+            const dueDate = document.getElementById('editDueDate').value;
+            const assignedPaycheckId = document.getElementById('editPaycheck').value;
+
+            bills = bills.map(b => {
+                if (b.id === id) {
+                    return { 
+                        ...b, 
+                        name, 
+                        amount, 
+                        dueDate,
+                        assignedPaycheckId: assignedPaycheckId === 'auto' ? null : parseInt(assignedPaycheckId)
+                    };
+                }
+                return b;
+            });
+
+            editingBillId = null;
+            saveData();
+            render();
+        }
+
+        function cancelEdit() {
+            editingBillId = null;
+            render();
+        }
+
+        function deleteBill(id) {
+            if (confirm('Delete this bill?')) {
+                bills = bills.filter(b => b.id !== id);
+                saveData();
+                render();
+            }
+        }
+
+        function setFilter(filter) {
+            currentFilter = filter;
+            document.querySelectorAll('.filter-tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+            render();
+        }
+
+        function clearAllData() {
+            if (confirm('Delete all bills and pay periods? This cannot be undone.')) {
+                localStorage.removeItem('bill-tracker-data');
+                bills = [];
+                paychecks = [];
+                selectedPaycheckId = null;
+                render();
+            }
+        }
+
+        function getDaysUntilDue(dueDate) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const due = new Date(dueDate);
+            const diffTime = due - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            return diffDays;
+        }
+
+        function getPaycheckForBill(billDueDate) {
+            if (paychecks.length === 0) return null;
+            
+            const sortedPaychecks = [...paychecks].sort((a, b) => new Date(a.date) - new Date(b.date));
+            
+            for (let i = 0; i < sortedPaychecks.length; i++) {
+                if (new Date(billDueDate) <= new Date(sortedPaychecks[i].date)) {
+                    return sortedPaychecks[i];
+                }
+            }
+            
+            return sortedPaychecks[sortedPaychecks.length - 1];
+        }
+
+        function getBillsForPaycheck(paycheckId) {
+            if (!paycheckId) return bills;
+            
+            return bills.filter(bill => {
+                if (bill.assignedPaycheckId !== null) {
+                    return bill.assignedPaycheckId === paycheckId;
+                }
+                const paycheck = getPaycheckForBill(bill.dueDate);
+                return paycheck && paycheck.id === paycheckId;
+            });
+        }
+
+        function getFilteredBills() {
+            let filtered = selectedPaycheckId ? getBillsForPaycheck(selectedPaycheckId) : bills;
+            
+            switch(currentFilter) {
+                case 'paid':
+                    return filtered.filter(b => b.paid);
+                case 'unpaid':
+                    return filtered.filter(b => !b.paid);
+                case 'overdue':
+                    return filtered.filter(b => !b.paid && getDaysUntilDue(b.dueDate) < 0);
+                default:
+                    return filtered;
+            }
+        }
+
+        function render() {
+            const filteredBills = getFilteredBills();
+            const totalBills = filteredBills.reduce((sum, b) => sum + b.amount, 0);
+            const totalPaid = filteredBills.filter(b => b.paid).reduce((sum, b) => sum + b.amount, 0);
+            const totalUnpaid = totalBills - totalPaid;
+
+            document.getElementById('totalBills').textContent = '$' + totalBills.toFixed(2);
+            document.getElementById('totalPaid').textContent = '$' + totalPaid.toFixed(2);
+            document.getElementById('totalUnpaid').textContent = '$' + totalUnpaid.toFixed(2);
+
+            const paycheckList = document.getElementById('paycheckList');
+            if (paychecks.length === 0) {
+                paycheckList.innerHTML = '<div class="empty-state" style="padding:20px 10px;font-size:0.9em">No pay periods yet</div>';
+            } else {
+                paycheckList.innerHTML = paychecks.map(pc => {
+                    const pcBills = getBillsForPaycheck(pc.id);
+                    const pcTotal = pcBills.reduce((sum, b) => sum + b.amount, 0);
+                    return `
+                        <div class="paycheck-item ${selectedPaycheckId === pc.id ? 'selected' : ''}" onclick="selectPaycheck(${pc.id})">
+                            <div>
+                                <div class="paycheck-date">${new Date(pc.date).toLocaleDateString()}</div>
+                                <div style="font-size:0.85em;color:#6b7280">${pcBills.length} bills</div>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:8px">
+                                <div class="paycheck-amount">$${pcTotal.toFixed(2)}</div>
+                                <button class="icon-btn delete-btn" onclick="event.stopPropagation(); deletePaycheck(${pc.id})">🗑️</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            const billsPanel = document.getElementById('billsPanel');
+            const sortedBills = [...filteredBills].sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+
+            if (sortedBills.length === 0) {
+                billsPanel.innerHTML = '<div class="empty-state">No bills to display</div>';
+            } else {
+                billsPanel.innerHTML = `
+                    <table class="bill-table">
+                        <thead>
+                            <tr>
+                                <th style="width:40px">Paid</th>
+                                <th>Bill Name</th>
+                                <th>Amount</th>
+                                <th>Due Date</th>
+                                <th>Status</th>
+                                <th>Date Paid</th>
+                                <th style="width:80px">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${sortedBills.map(bill => {
+                                if (editingBillId === bill.id) {
+                                    return `
+                                        <tr>
+                                            <td colspan="7">
+                                                <div class="edit-form">
+                                                    <input type="text" id="editName" value="${bill.name}" placeholder="Bill name">
+                                                    <input type="number" id="editAmount" value="${bill.amount}" placeholder="Amount" step="0.01">
+                                                    <input type="date" id="editDueDate" value="${bill.dueDate}">
+                                                    <select id="editPaycheck">
+                                                        <option value="auto" ${bill.assignedPaycheckId === null ? 'selected' : ''}>Auto-assign by due date</option>
+                                                        ${paychecks.map(pc => `
+                                                            <option value="${pc.id}" ${bill.assignedPaycheckId === pc.id ? 'selected' : ''}>
+                                                                ${new Date(pc.date).toLocaleDateString()}
+                                                            </option>
+                                                        `).join('')}
+                                                    </select>
+                                                    <div class="btn-row">
+                                                        <button class="btn-save" onclick="saveEditBill(${bill.id})">Save</button>
+                                                        <button class="btn-cancel" onclick="cancelEdit()">Cancel</button>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    `;
+                                }
+
+                                const daysUntil = getDaysUntilDue(bill.dueDate);
+                                let rowClass = '';
+                                let statusBadge = '';
+                                
+                                if (bill.paid) {
+                                    rowClass = 'paid';
+                                    statusBadge = '<span class="status-badge status-paid">Paid</span>';
+                                } else if (daysUntil < 0) {
+                                    rowClass = 'overdue';
+                                    statusBadge = `<span class="status-badge status-overdue">Overdue ${Math.abs(daysUntil)} days</span>`;
+                                } else if (daysUntil <= 3) {
+                                    rowClass = 'due-soon';
+                                    statusBadge = `<span class="status-badge status-pending">Due in ${daysUntil} day${daysUntil !== 1 ? 's' : ''}</span>`;
+                                } else {
+                                    statusBadge = `<span class="status-badge status-pending">${daysUntil} days</span>`;
+                                }
+
+                                return `
+                                    <tr class="bill-row ${rowClass}">
+                                        <td><input type="checkbox" class="checkbox" ${bill.paid ? 'checked' : ''} onchange="togglePaid(${bill.id})"></td>
+                                        <td class="bill-name">${bill.name}</td>
+                                        <td class="bill-amount">$${bill.amount.toFixed(2)}</td>
+                                        <td class="bill-due">${new Date(bill.dueDate).toLocaleDateString()}</td>
+                                        <td>${statusBadge}</td>
+                                        <td>
+                                            ${bill.paid ? `
+                                                <input type="date" id="datePaid-${bill.id}" value="${bill.datePaid ? new Date(bill.datePaid).toISOString().split('T')[0] : ''}" 
+                                                    onchange="setDatePaid(${bill.id})" style="width:140px;padding:4px;font-size:0.9em">
+                                            ` : '-'}
+                                        </td>
+                                        <td>
+                                            <button class="icon-btn edit-btn" onclick="startEditBill(${bill.id})">✏️</button>
+                                            <button class="icon-btn delete-btn" onclick="deleteBill(${bill.id})">🗑️</button>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                `;
+            }
+        }
+
+        loadData();
+    </script>
+</body>
+</html>
